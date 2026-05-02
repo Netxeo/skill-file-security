@@ -202,7 +202,7 @@ Works out-of-the-box with every major AI coding assistant. No manual setup.
 ## How it works
 
 ```
-1.  npx @security-skill/cli
+1.  npx skill-file-security
     └─ installs 29 security instruction files to .skills/security/
     └─ creates memory-security.md (tracks your score over time)
     └─ creates AI config files for every assistant on your machine

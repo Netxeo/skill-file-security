@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Security Skill — CLI Installer
-// Usage: npx @security-skill/cli
+// Usage: npx skill-file-security
 
 import { existsSync, mkdirSync, copyFileSync, readFileSync, writeFileSync, readdirSync, statSync } from 'fs'
 import { join, resolve, dirname } from 'path'
