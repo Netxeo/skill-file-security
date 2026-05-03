@@ -101,7 +101,7 @@ export async function askAI() {
     continue: args.includes('--continue'),
     gemini: args.includes('--gemini'),
     codex: args.includes('--codex'),
-    all: args.includes('--all')
+    all: args.includes('--all') || args.includes('--yes')
   };
   const hasFlag = Object.values(flags).some(v => v);
 

@@ -34,8 +34,10 @@ npx @netxeo/security-skill
 
 Fast mode (skips the prompt and only injects the file you need):
 ```bash
-npx @netxeo/security-skill --claude
-npx @netxeo/security-skill --cursor
+npx @netxeo/security-skill --yes       # Installs everywhere (silent)
+npx @netxeo/security-skill --all       # Same as --yes
+npx @netxeo/security-skill --claude    # Claude only
+npx @netxeo/security-skill --cursor    # Cursor only
 npx @netxeo/security-skill --windsurf
 npx @netxeo/security-skill --cline
 npx @netxeo/security-skill --copilot
