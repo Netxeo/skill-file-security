@@ -26,9 +26,10 @@
     "url": "https://github.com/Netxeo/skill-file-security/issues"
   },
   "bin": {
-    "security-skill": "./install.js"
+    "security-skill": "./bin.js"
   },
   "files": [
+    "bin.js",
     "install.js",
     "interactive.js",
     "skill.md",

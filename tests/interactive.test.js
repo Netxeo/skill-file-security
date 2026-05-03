@@ -18,6 +18,7 @@ beforeEach(() => {
 afterEach(() => {
   rmSync(testDir, { recursive: true, force: true })
   vi.restoreAllMocks()
+  vi.clearAllMocks()
 })
 
 // ── scanStack ──────────────────────────────────────────────────────────────

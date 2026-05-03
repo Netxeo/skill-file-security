@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+
 // Security Skill — CLI Installer
 // Usage: npx @netxeo/security-skill
 
@@ -138,7 +138,18 @@ export function runInstall(targetDir = process.cwd(), sourceDir = __dirname, con
 
   // 5. Create AI config files for all supported assistants
   const detectedAIs = detectAI(targetDir)
-  const skillRef = \`## 🔐 Security Skill Active\n\nThis project uses security-skill for automated security engineering.\n\n**At the start of every session:**\n1. Read \`.skills/security/skill.md\` — security engineering instructions (25 categories)\n2. Read \`memory-security.md\` — project security state and history\n3. Be ready for: \`/security-scan\`, \`/security-audit\`, \`/security-fix\`, \`/security-status\`, \`/security-incident\`, \`/security-history\`\n\nYou are acting as both a developer assistant AND a security engineer.\nProactively flag security issues in all code you write or review.\n\`
+  const skillRef = `## 🔐 Security Skill Active
+
+This project uses security-skill for automated security engineering.
+
+**At the start of every session:**
+1. Read \`.skills/security/skill.md\` — security engineering instructions (25 categories)
+2. Read \`memory-security.md\` — project security state and history
+3. Be ready for: \`/security-scan\`, \`/security-audit\`, \`/security-fix\`, \`/security-status\`, \`/security-incident\`
+
+You are acting as both a developer assistant AND a security engineer.
+Proactively flag security issues in all code you write or review.
+`
 
   console.log('')
   console.log(c('dim', '  Configuring AI assistants...'))
@@ -155,7 +166,7 @@ export function runInstall(targetDir = process.cwd(), sourceDir = __dirname, con
   if (shouldConfigureAI('cursor', config)) {
     writeAIConfig(targetDir, '.cursorrules', skillRef, '.cursorrules (Cursor legacy)')
     mkdirSync(join(targetDir, '.cursor', 'rules'), { recursive: true })
-    const mdcContent = \`---\ndescription: Security Skill — enterprise security engineering\nglobs: ["**/*"]\nalwaysApply: true\n---\n\n\${skillRef}\`
+    const mdcContent = `---\ndescription: Security Skill — enterprise security engineering\nglobs: ["**/*"]\nalwaysApply: true\n---\n\n${skillRef}`
     writeAIConfig(targetDir, '.cursor/rules/security.mdc', mdcContent, '.cursor/rules/security.mdc (Cursor MDC)')
   }
 
@@ -168,7 +179,7 @@ export function runInstall(targetDir = process.cwd(), sourceDir = __dirname, con
   if (shouldConfigureAI('copilot', config)) {
     mkdirSync(join(targetDir, '.github', 'instructions'), { recursive: true })
     writeAIConfig(targetDir, '.github/copilot-instructions.md', skillRef, '.github/copilot-instructions.md (GitHub Copilot)')
-    const copilotPathInstruction = \`---\napplyTo: "**"\n---\n\n\${skillRef}\`
+    const copilotPathInstruction = `---\napplyTo: "**"\n---\n\n${skillRef}`
     writeAIConfig(targetDir, '.github/instructions/security.instructions.md', copilotPathInstruction, '.github/instructions/security.instructions.md (Copilot path-specific)')
   }
 
@@ -179,16 +190,16 @@ export function runInstall(targetDir = process.cwd(), sourceDir = __dirname, con
     ? config.aiTools.includes('aider')
     : detectedAIs.includes('aider')
   if (configureAider)
-    writeAIConfig(targetDir, '.aider.conf.yml', \`# security-skill\nread:\n  - .skills/security/skill.md\n  - memory-security.md\n\`, '.aider.conf.yml (Aider)')
+    writeAIConfig(targetDir, '.aider.conf.yml', `# security-skill\nread:\n  - .skills/security/skill.md\n  - memory-security.md\n`, '.aider.conf.yml (Aider)')
 
   if (shouldConfigureAI('continue', config)) {
     mkdirSync(join(targetDir, '.continue'), { recursive: true })
-    const continueContent = \`# security-skill\nrules:\n  - name: "Security Skill"\n    rule: |\n      \${skillRef.replace(/\\n/g, '\\n      ')}\n\`
+    const continueContent = `# security-skill\nrules:\n  - name: "Security Skill"\n    rule: |\n      ${skillRef.replace(/\n/g, '\n      ')}\n`
     writeAIConfig(targetDir, '.continue/config.yaml', continueContent, '.continue/config.yaml (Continue.dev)')
   }
 
   if (detectedAIs.length > 0) {
-    console.log(c('green', \`  ✅ Detected existing AI tools: \${detectedAIs.join(', ')}\`))
+    console.log(c('green', `  ✅ Detected existing AI tools: ${detectedAIs.join(', ')}`))
   }
 }
 
@@ -204,7 +215,7 @@ export async function main(targetDir = process.cwd(), sourceDir = __dirname) {
     // Non-interactive path
     console.log('')
     console.log(c('bold', c('cyan', '╔══════════════════════════════════════════════╗')))
-    console.log(c('bold', c('cyan', \`║        🔐  SECURITY SKILL  v\${version.padEnd(16)}║\`)))
+    console.log(c('bold', c('cyan', `║        🔐  SECURITY SKILL  v${version.padEnd(16)}║`)))
     console.log(c('bold', c('cyan', '║   100% Code Security for Any Project          ║')))
     console.log(c('bold', c('cyan', '╚══════════════════════════════════════════════╝')))
     console.log('')
@@ -225,7 +236,6 @@ export async function main(targetDir = process.cwd(), sourceDir = __dirname) {
     console.log(c('dim', '  /security-audit   → Full audit + score /100'))
     console.log(c('dim', '  /security-fix     → Apply fixes'))
     console.log(c('dim', '  /security-status  → View current score'))
-    console.log(c('dim', '  /security-history → View audit history'))
     console.log(c('cyan', '  ──────────────────────────────────────────'))
     console.log('')
     console.log(c('dim', '  Compatible with:'))
@@ -243,20 +253,7 @@ export function shouldUseInteractive(
   argv = process.argv,
   isTTY = Boolean(process.stdout?.isTTY),
 ) {
-  return isTTY && !argv.includes('--yes') && !argv.includes('-y') && !argv.includes('--all')
+  return isTTY && !argv.includes('--yes') && !argv.includes('-y')
 }
 
-// ── CLI entry point ──────────────────────────────────────────────────────────
-// isMain is true only when executed directly (node install.js / npx).
-// When imported by tests, isMain is false and main() is never called here.
-const isMain = process.argv[1]
-  ? resolve(process.argv[1]).toLowerCase() === resolve(__filename).toLowerCase()
-  : false
-
-if (isMain) {
-  main().catch(err => {
-    console.error(c('red', '  ❌ Installation failed:'), err.message)
-    process.exit(1)
-  })
-}
 

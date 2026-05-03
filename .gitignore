@@ -21,3 +21,13 @@ out/
 
 # Misc
 *.pem
+
+# === Added by security-skill ===
+.env
+.env.local
+.env.*
+*.key
+*.pem
+secrets/
+
+coverage/
