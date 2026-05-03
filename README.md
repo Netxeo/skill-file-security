@@ -27,12 +27,13 @@
 
 ## Install it. Right now.
 
-Interactive mode (asks which AI you use):
+Interactive mode (Smart 5-question setup):
 ```bash
 npx @netxeo/security-skill
 ```
+*The interactive mode automatically detects your stack (Next.js, Supabase, Docker, etc.) and asks you 5 simple questions to install **only** the security rules you actually need.*
 
-Fast mode (skips the prompt and only injects the file you need):
+Fast mode (Silent install, bypasses prompts and installs all rules):
 ```bash
 npx @netxeo/security-skill --yes       # Installs everywhere (silent)
 npx @netxeo/security-skill --all       # Same as --yes
