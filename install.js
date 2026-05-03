@@ -149,7 +149,11 @@ export function runInstall(targetDir = process.cwd(), sourceDir = __dirname, aiS
   const SKILL_DIR = join(targetDir, '.skills', 'security')
 
   if (!aiSelection) {
-    aiSelection = { all: true }
+    aiSelection = {
+      claude: true, codex: true, gemini: true, cursor: true,
+      windsurf: true, cline: true, copilot: true, continue: true,
+      aider: false, all: false
+    }
   }
 
   // 1. Create .skills/security directory
@@ -186,6 +190,9 @@ export function runInstall(targetDir = process.cwd(), sourceDir = __dirname, aiS
 
   console.log('')
   console.log(c('dim', '  Configuring AI assistants...'))
+  if (detectedAIs.length > 0) {
+    console.log(c('dim', '  Detected existing AI tools: ' + detectedAIs.join(', ')))
+  }
 
   if (aiSelection.claude || aiSelection.all) {
     writeAIConfig(targetDir, 'CLAUDE.md', skillRef, 'CLAUDE.md (Claude / Antigravity)')
