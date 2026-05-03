@@ -175,3 +175,41 @@ export function mapAnswersToCategories(answers) {
 
   return [...cats].sort()
 }
+
+// ── promptCategories ─────────────────────────────────────────────────────────
+
+export async function promptCategories(suggested) {
+  const { checkbox } = await import('@inquirer/prompts')
+
+  const choices = ALL_CATEGORIES.map(cat => ({
+    value:    cat,
+    name:     `${cat.padEnd(30)} ${CATEGORY_REASONS[cat] ?? ''}`,
+    checked:  suggested.includes(cat),
+    disabled: ALWAYS_ON.includes(cat) ? 'always required' : false,
+  }))
+
+  const userSelected = await checkbox({
+    message: '📋 Confirm security categories  (space to toggle · enter to confirm)',
+    choices,
+    pageSize: 20,
+  })
+
+  return [...new Set([...ALWAYS_ON, ...ALWAYS_SILENT, ...userSelected])].sort()
+}
+
+// ── promptAITools ─────────────────────────────────────────────────────────────
+
+export async function promptAITools(detected) {
+  const { checkbox } = await import('@inquirer/prompts')
+
+  const choices = ALL_AI_TOOLS.map(tool => ({
+    value:   tool,
+    name:    TOOL_LABELS[tool],
+    checked: detected.includes(tool),
+  }))
+
+  return checkbox({
+    message: '🤖 Configure AI tools?  (detected tools are pre-selected)',
+    choices,
+  })
+}

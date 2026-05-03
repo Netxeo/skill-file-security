@@ -144,3 +144,84 @@ describe('mapAnswersToCategories', () => {
     expect(result).toContain('17-mobile-security')
   })
 })
+
+// ── Mock @inquirer/prompts ─────────────────────────────────────────────────
+// vi.mock is hoisted by Vitest, so this runs before imports regardless of position.
+
+vi.mock('@inquirer/prompts', () => ({
+  select:   vi.fn(),
+  checkbox: vi.fn(),
+}))
+
+// ── promptCategories ───────────────────────────────────────────────────────
+
+describe('promptCategories', () => {
+  it('always includes ALWAYS_ON and ALWAYS_SILENT in returned list regardless of user selection', async () => {
+    const { checkbox } = await import('@inquirer/prompts')
+    const { promptCategories, ALWAYS_ON, ALWAYS_SILENT } = await import('../interactive.js')
+    vi.mocked(checkbox).mockResolvedValue(['02-network-protection'])
+    const result = await promptCategories(['01-secrets-management', '02-network-protection'])
+    for (const cat of [...ALWAYS_ON, ...ALWAYS_SILENT]) {
+      expect(result).toContain(cat)
+    }
+  })
+
+  it('includes user-selected optional categories', async () => {
+    const { checkbox } = await import('@inquirer/prompts')
+    const { promptCategories } = await import('../interactive.js')
+    vi.mocked(checkbox).mockResolvedValue(['09-docker-security', '22-ai-llm-security'])
+    const result = await promptCategories(['09-docker-security'])
+    expect(result).toContain('09-docker-security')
+    expect(result).toContain('22-ai-llm-security')
+  })
+
+  it('returns sorted array', async () => {
+    const { checkbox } = await import('@inquirer/prompts')
+    const { promptCategories } = await import('../interactive.js')
+    vi.mocked(checkbox).mockResolvedValue(['09-docker-security'])
+    const result = await promptCategories(['09-docker-security'])
+    expect(result).toEqual([...result].sort())
+  })
+
+  it('calls checkbox with always-on items marked disabled', async () => {
+    const { checkbox } = await import('@inquirer/prompts')
+    const { promptCategories, ALWAYS_ON } = await import('../interactive.js')
+    vi.mocked(checkbox).mockResolvedValue([])
+    await promptCategories([])
+    const call = vi.mocked(checkbox).mock.calls[0][0]
+    const disabledChoices = call.choices.filter(ch => ch.disabled)
+    for (const cat of ALWAYS_ON) {
+      expect(disabledChoices.some(ch => ch.value === cat)).toBe(true)
+    }
+  })
+})
+
+describe('promptAITools', () => {
+  it('returns the tools the user selected', async () => {
+    const { checkbox } = await import('@inquirer/prompts')
+    const { promptAITools } = await import('../interactive.js')
+    vi.mocked(checkbox).mockResolvedValue(['cursor', 'antigravity'])
+    const result = await promptAITools(['cursor', 'antigravity'])
+    expect(result).toEqual(['cursor', 'antigravity'])
+  })
+
+  it('pre-checks detected tools', async () => {
+    const { checkbox } = await import('@inquirer/prompts')
+    const { promptAITools } = await import('../interactive.js')
+    vi.mocked(checkbox).mockResolvedValue([])
+    await promptAITools(['cursor'])
+    const call = vi.mocked(checkbox).mock.calls[0][0]
+    const cursorChoice = call.choices.find(ch => ch.value === 'cursor')
+    expect(cursorChoice.checked).toBe(true)
+    const geminiChoice = call.choices.find(ch => ch.value === 'gemini')
+    expect(geminiChoice.checked).toBe(false)
+  })
+
+  it('returns empty array when nothing selected', async () => {
+    const { checkbox } = await import('@inquirer/prompts')
+    const { promptAITools } = await import('../interactive.js')
+    vi.mocked(checkbox).mockResolvedValue([])
+    const result = await promptAITools([])
+    expect(result).toEqual([])
+  })
+})
