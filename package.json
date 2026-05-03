@@ -30,6 +30,7 @@
   },
   "files": [
     "install.js",
+    "interactive.js",
     "skill.md",
     "instructions/",
     "templates/",
