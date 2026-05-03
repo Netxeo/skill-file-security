@@ -275,6 +275,22 @@ After your first audit, your score lives in `memory-security.md`:
 
 ---
 
+## Updating & Custom Rules
+
+To update to the latest security checks, simply re-run the installation:
+
+```bash
+npx @netxeo/security-skill@latest
+```
+
+**⚠️ Important:** 
+- This command will cleanly overwrite the `.skills/security/` folder to provide the newest AI instructions. 
+- **Do not modify files inside `.skills/security/` manually.**
+- Your score history is safe. The installer will **never** overwrite your `memory-security.md` file.
+- **Custom Rules:** If you need to add your own company-specific security rules, add them to the `## Custom Rules` section inside your `memory-security.md` file. The AI will always read them from there.
+
+---
+
 ## Contributing
 
 Found a missing vulnerability pattern? Open a PR.
