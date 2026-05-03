@@ -10,7 +10,7 @@ import {
 import { join, dirname } from 'path'
 import { fileURLToPath } from 'url'
 import { tmpdir } from 'os'
-import { detectAI, writeAIConfig, copyDir, mergeGitignore, runInstall, main, c, colors } from '../install.js'
+import { detectAI, writeAIConfig, copyDir, mergeGitignore, runInstall, main, shouldUseInteractive, c, colors } from '../install.js'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
@@ -478,6 +478,14 @@ describe('runInstall', () => {
     expect(existsSync(join(testDir, '.aider.conf.yml'))).toBe(false)
   })
 
+  it('configures aider when aider is detected and no config.aiTools provided', () => {
+    writeFileSync(join(testDir, '.aider.conf.yaml'), '')
+    runInstall(testDir, PACKAGE_ROOT)
+    expect(existsSync(join(testDir, '.aider.conf.yml'))).toBe(true)
+    const content = readFileSync(join(testDir, '.aider.conf.yml'), 'utf8')
+    expect(content).toContain('security-skill')
+  })
+
   it('does not overwrite AI config files that already contain security-skill', () => {
     const original = 'security-skill already configured here, do not touch'
     writeFileSync(join(testDir, 'CLAUDE.md'), original)
@@ -525,22 +533,36 @@ describe('runInstall', () => {
     runInstall(testDir, PACKAGE_ROOT)
     expect(console.log).toHaveBeenCalledWith(expect.stringContaining('already exists'))
   })
+
+  it('installs only specified categories when config.categories is provided', () => {
+    runInstall(testDir, PACKAGE_ROOT, { categories: ['01-secrets-management', '05-cryptography'] })
+    expect(existsSync(join(testDir, '.skills', 'security', 'instructions', '01-secrets-management.md'))).toBe(true)
+    expect(existsSync(join(testDir, '.skills', 'security', 'instructions', '05-cryptography.md'))).toBe(true)
+    expect(existsSync(join(testDir, '.skills', 'security', 'instructions', '07-database-security.md'))).toBe(false)
+  })
+
+  it('installs all categories when config.categories is undefined', () => {
+    runInstall(testDir, PACKAGE_ROOT, {})
+    expect(existsSync(join(testDir, '.skills', 'security', 'instructions', '07-database-security.md'))).toBe(true)
+  })
+
+  it('skips non-selected AI tools when config.aiTools is provided', () => {
+    runInstall(testDir, PACKAGE_ROOT, { aiTools: ['antigravity'] })
+    expect(existsSync(join(testDir, 'CLAUDE.md'))).toBe(true)
+    expect(existsSync(join(testDir, '.cursorrules'))).toBe(false)
+    expect(existsSync(join(testDir, '.windsurfrules'))).toBe(false)
+  })
+
+  it('configures all AI tools when config.aiTools is undefined', () => {
+    runInstall(testDir, PACKAGE_ROOT, {})
+    expect(existsSync(join(testDir, 'CLAUDE.md'))).toBe(true)
+    expect(existsSync(join(testDir, '.cursorrules'))).toBe(true)
+  })
 })
 
 // ─── main() ──────────────────────────────────────────────────────────────────
 
 describe('main()', () => {
-  let originalArgv;
-
-  beforeEach(() => {
-    originalArgv = [...process.argv]
-    process.argv.push('--all') // Prevent interactive prompt from blocking
-  })
-
-  afterEach(() => {
-    process.argv = originalArgv
-  })
-
   it('prints the ASCII banner header', async () => {
     await main(testDir, PACKAGE_ROOT)
     expect(console.log).toHaveBeenCalledWith(expect.stringContaining('SECURITY SKILL'))
@@ -587,4 +609,40 @@ describe('main()', () => {
     )
     expect(mockExit).toHaveBeenCalledWith(1)
   })
+
+  it('delegates to runInteractive when shouldUseInteractive returns true', async () => {
+    const mockRunInteractive = vi.fn().mockResolvedValue(undefined)
+    vi.doMock('../interactive.js', () => ({ runInteractive: mockRunInteractive }))
+
+    // Verify the routing logic that shouldUseInteractive controls
+    expect(shouldUseInteractive(['node', 'install.js'], true)).toBe(true)
+    expect(shouldUseInteractive(['node', 'install.js', '--yes'], true)).toBe(false)
+
+    vi.doUnmock('../interactive.js')
+  })
 })
+
+// ─── shouldUseInteractive() ──────────────────────────────────────────────────
+
+describe('shouldUseInteractive()', () => {
+  it('returns false when --yes is in argv', () => {
+    expect(shouldUseInteractive(['node', 'install.js', '--yes'], true)).toBe(false)
+  })
+
+  it('returns false when -y is in argv', () => {
+    expect(shouldUseInteractive(['node', 'install.js', '-y'], true)).toBe(false)
+  })
+
+  it('returns false when isTTY is false', () => {
+    expect(shouldUseInteractive(['node', 'install.js'], false)).toBe(false)
+  })
+
+  it('returns false when isTTY is undefined', () => {
+    expect(shouldUseInteractive(['node', 'install.js'], undefined)).toBe(false)
+  })
+
+  it('returns true when TTY and no --yes flag', () => {
+    expect(shouldUseInteractive(['node', 'install.js'], true)).toBe(true)
+  })
+})
+

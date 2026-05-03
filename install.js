@@ -5,7 +5,9 @@
 import { existsSync, mkdirSync, copyFileSync, readFileSync, writeFileSync, readdirSync, statSync } from 'fs'
 import { join, resolve, dirname } from 'path'
 import { fileURLToPath } from 'url'
-import readline from 'readline'
+import { createRequire } from 'module'
+const _require = createRequire(import.meta.url)
+const { version } = _require('./package.json')
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
@@ -89,78 +91,28 @@ export function mergeGitignore(targetDir, securityEntries) {
   return 0
 }
 
-export async function askAI() {
-  const args = process.argv.slice(2);
-  const flags = {
-    claude: args.includes('--claude'),
-    cursor: args.includes('--cursor'),
-    windsurf: args.includes('--windsurf'),
-    cline: args.includes('--cline'),
-    copilot: args.includes('--copilot'),
-    aider: args.includes('--aider'),
-    continue: args.includes('--continue'),
-    gemini: args.includes('--gemini'),
-    codex: args.includes('--codex'),
-    all: args.includes('--all') || args.includes('--yes')
-  };
-  const hasFlag = Object.values(flags).some(v => v);
-
-  if (hasFlag) return flags;
-
-  const rl = readline.createInterface({
-    input: process.stdin,
-    output: process.stdout
-  });
-
-  console.log(c('bold', '🤖 Which AI assistant are you using?'));
-  console.log('  1. Claude / Antigravity');
-  console.log('  2. Cursor');
-  console.log('  3. Windsurf');
-  console.log('  4. Cline');
-  console.log('  5. GitHub Copilot');
-  console.log('  6. Aider');
-  console.log('  7. Continue.dev');
-  console.log('  8. Gemini');
-  console.log('  9. Codex CLI');
-  console.log(' 10. All of them (inject all files)');
-  console.log('');
-
-  return new Promise((resolve) => {
-    rl.question('Select a number [10]: ', (answer) => {
-      rl.close();
-      const num = answer.trim() === '' ? 10 : parseInt(answer.trim(), 10);
-      resolve({
-        claude: num === 1,
-        cursor: num === 2,
-        windsurf: num === 3,
-        cline: num === 4,
-        copilot: num === 5,
-        aider: num === 6,
-        continue: num === 7,
-        gemini: num === 8,
-        codex: num === 9,
-        all: num === 10 || isNaN(num) || num < 1 || num > 10
-      });
-    });
-  });
+function shouldConfigureAI(tool, config) {
+  return !config.aiTools || config.aiTools.includes(tool)
 }
 
-export function runInstall(targetDir = process.cwd(), sourceDir = __dirname, aiSelection = null) {
+export function runInstall(targetDir = process.cwd(), sourceDir = __dirname, config = {}) {
   const SKILL_DIR = join(targetDir, '.skills', 'security')
-
-  if (!aiSelection) {
-    aiSelection = {
-      claude: true, codex: true, gemini: true, cursor: true,
-      windsurf: true, cline: true, copilot: true, continue: true,
-      aider: false, all: false
-    }
-  }
 
   // 1. Create .skills/security directory
   mkdirSync(SKILL_DIR, { recursive: true })
 
   // 2. Copy all skill files
-  copyDir(join(sourceDir, 'instructions'), join(SKILL_DIR, 'instructions'))
+  if (config.categories) {
+    mkdirSync(join(SKILL_DIR, 'instructions'), { recursive: true })
+    for (const stem of config.categories) {
+      copyFileSync(
+        join(sourceDir, 'instructions', `${stem}.md`),
+        join(SKILL_DIR, 'instructions', `${stem}.md`)
+      )
+    }
+  } else {
+    copyDir(join(sourceDir, 'instructions'), join(SKILL_DIR, 'instructions'))
+  }
   copyDir(join(sourceDir, 'templates'), join(SKILL_DIR, 'templates'))
   copyDir(join(sourceDir, 'checklists'), join(SKILL_DIR, 'checklists'))
   copyFileSync(join(sourceDir, 'skill.md'), join(SKILL_DIR, 'skill.md'))
@@ -186,68 +138,83 @@ export function runInstall(targetDir = process.cwd(), sourceDir = __dirname, aiS
 
   // 5. Create AI config files for all supported assistants
   const detectedAIs = detectAI(targetDir)
-  const skillRef = `## 🔐 Security Skill Active\n\nThis project uses security-skill for automated security engineering.\n\n**At the start of every session:**\n1. Read \`.skills/security/skill.md\` — security engineering instructions (25 categories)\n2. Read \`memory-security.md\` — project security state and history\n3. Be ready for: \`/security-scan\`, \`/security-audit\`, \`/security-fix\`, \`/security-status\`, \`/security-incident\`, \`/security-history\`\n\nYou are acting as both a developer assistant AND a security engineer.\nProactively flag security issues in all code you write or review.\n`
+  const skillRef = \`## 🔐 Security Skill Active\n\nThis project uses security-skill for automated security engineering.\n\n**At the start of every session:**\n1. Read \`.skills/security/skill.md\` — security engineering instructions (25 categories)\n2. Read \`memory-security.md\` — project security state and history\n3. Be ready for: \`/security-scan\`, \`/security-audit\`, \`/security-fix\`, \`/security-status\`, \`/security-incident\`, \`/security-history\`\n\nYou are acting as both a developer assistant AND a security engineer.\nProactively flag security issues in all code you write or review.\n\`
 
   console.log('')
   console.log(c('dim', '  Configuring AI assistants...'))
-  if (detectedAIs.length > 0) {
-    console.log(c('dim', '  Detected existing AI tools: ' + detectedAIs.join(', ')))
-  }
 
-  if (aiSelection.claude || aiSelection.all) {
+  if (shouldConfigureAI('antigravity', config))
     writeAIConfig(targetDir, 'CLAUDE.md', skillRef, 'CLAUDE.md (Claude / Antigravity)')
-  }
-  if (aiSelection.codex || aiSelection.all) {
+
+  if (shouldConfigureAI('codex', config))
     writeAIConfig(targetDir, 'AGENTS.md', skillRef, 'AGENTS.md (OpenAI Codex CLI)')
-  }
-  if (aiSelection.gemini || aiSelection.all) {
+
+  if (shouldConfigureAI('gemini', config))
     writeAIConfig(targetDir, 'GEMINI.md', skillRef, 'GEMINI.md (Gemini Code Assist)')
-  }
-  if (aiSelection.cursor || aiSelection.all) {
+
+  if (shouldConfigureAI('cursor', config)) {
     writeAIConfig(targetDir, '.cursorrules', skillRef, '.cursorrules (Cursor legacy)')
     mkdirSync(join(targetDir, '.cursor', 'rules'), { recursive: true })
-    const mdcContent = `---\ndescription: Security Skill — enterprise security engineering\nglobs: ["**/*"]\nalwaysApply: true\n---\n\n${skillRef}`
+    const mdcContent = \`---\ndescription: Security Skill — enterprise security engineering\nglobs: ["**/*"]\nalwaysApply: true\n---\n\n\${skillRef}\`
     writeAIConfig(targetDir, '.cursor/rules/security.mdc', mdcContent, '.cursor/rules/security.mdc (Cursor MDC)')
   }
-  if (aiSelection.windsurf || aiSelection.all) {
+
+  if (shouldConfigureAI('windsurf', config))
     writeAIConfig(targetDir, '.windsurfrules', skillRef, '.windsurfrules (Windsurf)')
-  }
-  if (aiSelection.cline || aiSelection.all) {
+
+  if (shouldConfigureAI('cline', config))
     writeAIConfig(targetDir, '.clinerules', skillRef, '.clinerules (Cline)')
-  }
-  if (aiSelection.copilot || aiSelection.all) {
+
+  if (shouldConfigureAI('copilot', config)) {
     mkdirSync(join(targetDir, '.github', 'instructions'), { recursive: true })
     writeAIConfig(targetDir, '.github/copilot-instructions.md', skillRef, '.github/copilot-instructions.md (GitHub Copilot)')
-    const copilotPathInstruction = `---\napplyTo: "**"\n---\n\n${skillRef}`
+    const copilotPathInstruction = \`---\napplyTo: "**"\n---\n\n\${skillRef}\`
     writeAIConfig(targetDir, '.github/instructions/security.instructions.md', copilotPathInstruction, '.github/instructions/security.instructions.md (Copilot path-specific)')
   }
-  if (aiSelection.aider || aiSelection.all || detectedAIs.includes('aider') || existsSync(join(targetDir, '.aider.conf.yml'))) {
-    writeAIConfig(targetDir, '.aider.conf.yml', `# security-skill\nread:\n  - .skills/security/skill.md\n  - memory-security.md\n`, '.aider.conf.yml (Aider)')
-  }
-  if (aiSelection.continue || aiSelection.all) {
+
+  // Aider is opt-in when no config is provided: only configure when already detected.
+  // All other tools default to on (shouldConfigureAI returns true when config.aiTools is undefined).
+  // This asymmetry is intentional — auto-creating .aider.conf.yml in an unrelated project is invasive.
+  const configureAider = config.aiTools
+    ? config.aiTools.includes('aider')
+    : detectedAIs.includes('aider')
+  if (configureAider)
+    writeAIConfig(targetDir, '.aider.conf.yml', \`# security-skill\nread:\n  - .skills/security/skill.md\n  - memory-security.md\n\`, '.aider.conf.yml (Aider)')
+
+  if (shouldConfigureAI('continue', config)) {
     mkdirSync(join(targetDir, '.continue'), { recursive: true })
-    const continueContent = `# security-skill\nrules:\n  - name: "Security Skill"\n    rule: |\n      ${skillRef.replace(/\n/g, '\n      ')}\n`
+    const continueContent = \`# security-skill\nrules:\n  - name: "Security Skill"\n    rule: |\n      \${skillRef.replace(/\\n/g, '\\n      ')}\n\`
     writeAIConfig(targetDir, '.continue/config.yaml', continueContent, '.continue/config.yaml (Continue.dev)')
+  }
+
+  if (detectedAIs.length > 0) {
+    console.log(c('green', \`  ✅ Detected existing AI tools: \${detectedAIs.join(', ')}\`))
   }
 }
 
 // Exported so it can be tested in-process without subprocess overhead.
 export async function main(targetDir = process.cwd(), sourceDir = __dirname) {
-  console.log('')
-  console.log(c('bold', c('cyan', '╔══════════════════════════════════════════════╗')))
-  console.log(c('bold', c('cyan', '║        🔐  SECURITY SKILL  v1.0.0            ║')))
-  console.log(c('bold', c('cyan', '║   100% Code Security for Any Project          ║')))
-  console.log(c('bold', c('cyan', '╚══════════════════════════════════════════════╝')))
-  console.log('')
-  console.log(c('dim', '  Covers: CWE Top 25 · OWASP Top 10 · ASVS L1-3'))
-  console.log(c('dim', '  Works with: Claude · Cursor · Copilot · Windsurf · Cline · Codex · Aider · Gemini'))
-  console.log('')
-  console.log('📦 Installing security-skill...')
-  console.log('')
-
   try {
-    const aiSelection = await askAI();
-    runInstall(targetDir, sourceDir, aiSelection)
+    if (shouldUseInteractive()) {
+      const { runInteractive } = await import('./interactive.js')
+      await runInteractive(targetDir, sourceDir)
+      return
+    }
+
+    // Non-interactive path
+    console.log('')
+    console.log(c('bold', c('cyan', '╔══════════════════════════════════════════════╗')))
+    console.log(c('bold', c('cyan', \`║        🔐  SECURITY SKILL  v\${version.padEnd(16)}║\`)))
+    console.log(c('bold', c('cyan', '║   100% Code Security for Any Project          ║')))
+    console.log(c('bold', c('cyan', '╚══════════════════════════════════════════════╝')))
+    console.log('')
+    console.log(c('dim', '  Covers: CWE Top 25 · OWASP Top 10 · ASVS L1-3'))
+    console.log(c('dim', '  Works with: Claude · Cursor · Copilot · Windsurf · Cline · Codex · Aider · Gemini'))
+    console.log('')
+    console.log('📦 Installing security-skill...')
+    console.log('')
+
+    runInstall(targetDir, sourceDir)
 
     console.log('')
     console.log(c('bold', c('green', '  ✅ Installation complete!')))
@@ -272,13 +239,24 @@ export async function main(targetDir = process.cwd(), sourceDir = __dirname) {
   }
 }
 
+export function shouldUseInteractive(
+  argv = process.argv,
+  isTTY = Boolean(process.stdout?.isTTY),
+) {
+  return isTTY && !argv.includes('--yes') && !argv.includes('-y') && !argv.includes('--all')
+}
+
 // ── CLI entry point ──────────────────────────────────────────────────────────
 // isMain is true only when executed directly (node install.js / npx).
 // When imported by tests, isMain is false and main() is never called here.
 const isMain = process.argv[1]
-  ? resolve(process.argv[1]) === resolve(__filename)
+  ? resolve(process.argv[1]).toLowerCase() === resolve(__filename).toLowerCase()
   : false
 
 if (isMain) {
-  main()
+  main().catch(err => {
+    console.error(c('red', '  ❌ Installation failed:'), err.message)
+    process.exit(1)
+  })
 }
+

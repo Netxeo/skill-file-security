@@ -9,7 +9,7 @@ export default defineConfig({
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json-summary', 'html'],
-      include: ['install.js'],
+      include: ['install.js', 'interactive.js'],
       // ─── HARD GATE ────────────────────────────────────────────────────────
       // These thresholds are a non-negotiable quality floor.
       // Any PR or agent that drops coverage below these values will cause
