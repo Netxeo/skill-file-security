@@ -10,7 +10,7 @@ import {
 import { join, dirname } from 'path'
 import { fileURLToPath } from 'url'
 import { tmpdir } from 'os'
-import { detectAI, writeAIConfig, copyDir, mergeGitignore, runInstall, main, c, colors } from '../install.js'
+import { detectAI, writeAIConfig, copyDir, mergeGitignore, runInstall, main, shouldUseInteractive, c, colors } from '../install.js'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
@@ -555,50 +555,102 @@ describe('runInstall', () => {
 // ─── main() ──────────────────────────────────────────────────────────────────
 
 describe('main()', () => {
-  it('prints the ASCII banner header', () => {
-    main(testDir, PACKAGE_ROOT)
+  it('prints the ASCII banner header', async () => {
+    await main(testDir, PACKAGE_ROOT)
     expect(console.log).toHaveBeenCalledWith(expect.stringContaining('SECURITY SKILL'))
   })
 
-  it('prints coverage tag line', () => {
-    main(testDir, PACKAGE_ROOT)
+  it('prints coverage tag line', async () => {
+    await main(testDir, PACKAGE_ROOT)
     expect(console.log).toHaveBeenCalledWith(expect.stringContaining('CWE Top 25'))
   })
 
-  it('prints the installing progress line', () => {
-    main(testDir, PACKAGE_ROOT)
+  it('prints the installing progress line', async () => {
+    await main(testDir, PACKAGE_ROOT)
     expect(console.log).toHaveBeenCalledWith(expect.stringContaining('Installing security-skill'))
   })
 
-  it('runs a full install and creates .skills/security/', () => {
-    main(testDir, PACKAGE_ROOT)
+  it('runs a full install and creates .skills/security/', async () => {
+    await main(testDir, PACKAGE_ROOT)
     expect(existsSync(join(testDir, '.skills', 'security'))).toBe(true)
   })
 
-  it('prints Installation complete on success', () => {
-    main(testDir, PACKAGE_ROOT)
+  it('prints Installation complete on success', async () => {
+    await main(testDir, PACKAGE_ROOT)
     expect(console.log).toHaveBeenCalledWith(expect.stringContaining('Installation complete'))
   })
 
-  it('prints available command list after success', () => {
-    main(testDir, PACKAGE_ROOT)
+  it('prints available command list after success', async () => {
+    await main(testDir, PACKAGE_ROOT)
     expect(console.log).toHaveBeenCalledWith(expect.stringContaining('/security-scan'))
     expect(console.log).toHaveBeenCalledWith(expect.stringContaining('/security-audit'))
   })
 
-  it('prints compatible AI tools list after success', () => {
-    main(testDir, PACKAGE_ROOT)
+  it('prints compatible AI tools list after success', async () => {
+    await main(testDir, PACKAGE_ROOT)
     expect(console.log).toHaveBeenCalledWith(expect.stringContaining('Claude'))
     expect(console.log).toHaveBeenCalledWith(expect.stringContaining('Cursor'))
   })
 
-  it('calls process.exit(1) and logs error when install throws', () => {
+  it('calls process.exit(1) and logs error when install throws', async () => {
     const mockExit = vi.spyOn(process, 'exit').mockImplementation(() => {})
-    main(testDir, '/nonexistent-source-that-does-not-exist-12345')
+    await main(testDir, '/nonexistent-source-that-does-not-exist-12345')
     expect(console.error).toHaveBeenCalledWith(
       expect.stringContaining('Installation failed'),
       expect.any(String),
     )
+    expect(mockExit).toHaveBeenCalledWith(1)
+  })
+})
+
+// ─── shouldUseInteractive() ──────────────────────────────────────────────────
+
+describe('shouldUseInteractive()', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  it('returns false when --yes is in argv', () => {
+    vi.stubGlobal('process', { ...process, argv: ['node', 'install.js', '--yes'], stdout: { isTTY: true } })
+    expect(shouldUseInteractive()).toBe(false)
+  })
+
+  it('returns false when -y is in argv', () => {
+    vi.stubGlobal('process', { ...process, argv: ['node', 'install.js', '-y'], stdout: { isTTY: true } })
+    expect(shouldUseInteractive()).toBe(false)
+  })
+
+  it('returns false when stdout is not a TTY', () => {
+    vi.stubGlobal('process', { ...process, argv: ['node', 'install.js'], stdout: { isTTY: false } })
+    expect(shouldUseInteractive()).toBe(false)
+  })
+
+  it('returns false when stdout.isTTY is undefined', () => {
+    vi.stubGlobal('process', { ...process, argv: ['node', 'install.js'], stdout: {} })
+    expect(shouldUseInteractive()).toBe(false)
+  })
+
+  it('returns true when TTY and no --yes flag', () => {
+    vi.stubGlobal('process', { ...process, argv: ['node', 'install.js'], stdout: { isTTY: true } })
+    expect(shouldUseInteractive()).toBe(true)
+  })
+})
+
+describe('main() async', () => {
+  it('runs non-interactively and creates install output', async () => {
+    await main(testDir, PACKAGE_ROOT)
+    expect(existsSync(join(testDir, '.skills', 'security'))).toBe(true)
+  })
+
+  it('prints Installation complete on success', async () => {
+    await main(testDir, PACKAGE_ROOT)
+    expect(console.log).toHaveBeenCalledWith(expect.stringContaining('Installation complete'))
+  })
+
+  it('calls process.exit(1) and logs error on failure', async () => {
+    const mockExit = vi.spyOn(process, 'exit').mockImplementation(() => {})
+    await main(testDir, '/nonexistent-bad-source-12345')
+    expect(console.error).toHaveBeenCalledWith(expect.stringContaining('Installation failed'), expect.any(String))
     expect(mockExit).toHaveBeenCalledWith(1)
   })
 })

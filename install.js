@@ -198,7 +198,14 @@ Proactively flag security issues in all code you write or review.
 }
 
 // Exported so it can be tested in-process without subprocess overhead.
-export function main(targetDir = process.cwd(), sourceDir = __dirname) {
+export async function main(targetDir = process.cwd(), sourceDir = __dirname) {
+  if (shouldUseInteractive()) {
+    const { runInteractive } = await import('./interactive.js')
+    await runInteractive(targetDir, sourceDir)
+    return
+  }
+
+  // Non-interactive path
   console.log('')
   console.log(c('bold', c('cyan', '╔══════════════════════════════════════════════╗')))
   console.log(c('bold', c('cyan', '║        🔐  SECURITY SKILL  v1.0.0            ║')))
@@ -236,6 +243,12 @@ export function main(targetDir = process.cwd(), sourceDir = __dirname) {
   }
 }
 
+export function shouldUseInteractive() {
+  return Boolean(process.stdout.isTTY) &&
+    !process.argv.includes('--yes') &&
+    !process.argv.includes('-y')
+}
+
 // ── CLI entry point ──────────────────────────────────────────────────────────
 // isMain is true only when executed directly (node install.js / npx).
 // When imported by tests, isMain is false and main() is never called here.
@@ -244,5 +257,8 @@ const isMain = process.argv[1]
   : false
 
 if (isMain) {
-  main()
+  main().catch(err => {
+    console.error(c('red', '  ❌ Installation failed:'), err.message)
+    process.exit(1)
+  })
 }
