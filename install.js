@@ -88,14 +88,28 @@ export function mergeGitignore(targetDir, securityEntries) {
   return 0
 }
 
-export function runInstall(targetDir = process.cwd(), sourceDir = __dirname) {
+function shouldConfigureAI(tool, config) {
+  return !config.aiTools || config.aiTools.includes(tool)
+}
+
+export function runInstall(targetDir = process.cwd(), sourceDir = __dirname, config = {}) {
   const SKILL_DIR = join(targetDir, '.skills', 'security')
 
   // 1. Create .skills/security directory
   mkdirSync(SKILL_DIR, { recursive: true })
 
   // 2. Copy all skill files
-  copyDir(join(sourceDir, 'instructions'), join(SKILL_DIR, 'instructions'))
+  if (config.categories) {
+    mkdirSync(join(SKILL_DIR, 'instructions'), { recursive: true })
+    for (const stem of config.categories) {
+      copyFileSync(
+        join(sourceDir, 'instructions', `${stem}.md`),
+        join(SKILL_DIR, 'instructions', `${stem}.md`)
+      )
+    }
+  } else {
+    copyDir(join(sourceDir, 'instructions'), join(SKILL_DIR, 'instructions'))
+  }
   copyDir(join(sourceDir, 'templates'), join(SKILL_DIR, 'templates'))
   copyDir(join(sourceDir, 'checklists'), join(SKILL_DIR, 'checklists'))
   copyFileSync(join(sourceDir, 'skill.md'), join(SKILL_DIR, 'skill.md'))
@@ -137,44 +151,46 @@ Proactively flag security issues in all code you write or review.
   console.log('')
   console.log(c('dim', '  Configuring AI assistants...'))
 
-  // ── Claude / Antigravity ──
-  writeAIConfig(targetDir, 'CLAUDE.md', skillRef, 'CLAUDE.md (Claude / Antigravity)')
+  if (shouldConfigureAI('antigravity', config))
+    writeAIConfig(targetDir, 'CLAUDE.md', skillRef, 'CLAUDE.md (Claude / Antigravity)')
 
-  // ── OpenAI Codex CLI (AGENTS.md) ──
-  writeAIConfig(targetDir, 'AGENTS.md', skillRef, 'AGENTS.md (OpenAI Codex CLI)')
+  if (shouldConfigureAI('codex', config))
+    writeAIConfig(targetDir, 'AGENTS.md', skillRef, 'AGENTS.md (OpenAI Codex CLI)')
 
-  // ── Gemini Code Assist ──
-  writeAIConfig(targetDir, 'GEMINI.md', skillRef, 'GEMINI.md (Gemini Code Assist)')
+  if (shouldConfigureAI('gemini', config))
+    writeAIConfig(targetDir, 'GEMINI.md', skillRef, 'GEMINI.md (Gemini Code Assist)')
 
-  // ── Cursor (legacy .cursorrules) ──
-  writeAIConfig(targetDir, '.cursorrules', skillRef, '.cursorrules (Cursor legacy)')
-
-  // ── Cursor (new MDC format) ──
-  mkdirSync(join(targetDir, '.cursor', 'rules'), { recursive: true })
-  const mdcContent = `---\ndescription: Security Skill — enterprise security engineering\nglobs: ["**/*"]\nalwaysApply: true\n---\n\n${skillRef}`
-  writeAIConfig(targetDir, '.cursor/rules/security.mdc', mdcContent, '.cursor/rules/security.mdc (Cursor MDC)')
-
-  // ── Windsurf ──
-  writeAIConfig(targetDir, '.windsurfrules', skillRef, '.windsurfrules (Windsurf)')
-
-  // ── Cline ──
-  writeAIConfig(targetDir, '.clinerules', skillRef, '.clinerules (Cline)')
-
-  // ── GitHub Copilot ──
-  mkdirSync(join(targetDir, '.github', 'instructions'), { recursive: true })
-  writeAIConfig(targetDir, '.github/copilot-instructions.md', skillRef, '.github/copilot-instructions.md (GitHub Copilot)')
-  const copilotPathInstruction = `---\napplyTo: "**"\n---\n\n${skillRef}`
-  writeAIConfig(targetDir, '.github/instructions/security.instructions.md', copilotPathInstruction, '.github/instructions/security.instructions.md (Copilot path-specific)')
-
-  // ── Aider (only when already detected) ──
-  if (detectedAIs.includes('aider') || existsSync(join(targetDir, '.aider.conf.yml'))) {
-    writeAIConfig(targetDir, '.aider.conf.yml', `# security-skill\nread:\n  - .skills/security/skill.md\n  - memory-security.md\n`, '.aider.conf.yml (Aider)')
+  if (shouldConfigureAI('cursor', config)) {
+    writeAIConfig(targetDir, '.cursorrules', skillRef, '.cursorrules (Cursor legacy)')
+    mkdirSync(join(targetDir, '.cursor', 'rules'), { recursive: true })
+    const mdcContent = `---\ndescription: Security Skill — enterprise security engineering\nglobs: ["**/*"]\nalwaysApply: true\n---\n\n${skillRef}`
+    writeAIConfig(targetDir, '.cursor/rules/security.mdc', mdcContent, '.cursor/rules/security.mdc (Cursor MDC)')
   }
 
-  // ── Continue.dev ──
-  mkdirSync(join(targetDir, '.continue'), { recursive: true })
-  const continueContent = `# security-skill\nrules:\n  - name: "Security Skill"\n    rule: |\n      ${skillRef.replace(/\n/g, '\n      ')}\n`
-  writeAIConfig(targetDir, '.continue/config.yaml', continueContent, '.continue/config.yaml (Continue.dev)')
+  if (shouldConfigureAI('windsurf', config))
+    writeAIConfig(targetDir, '.windsurfrules', skillRef, '.windsurfrules (Windsurf)')
+
+  if (shouldConfigureAI('cline', config))
+    writeAIConfig(targetDir, '.clinerules', skillRef, '.clinerules (Cline)')
+
+  if (shouldConfigureAI('copilot', config)) {
+    mkdirSync(join(targetDir, '.github', 'instructions'), { recursive: true })
+    writeAIConfig(targetDir, '.github/copilot-instructions.md', skillRef, '.github/copilot-instructions.md (GitHub Copilot)')
+    const copilotPathInstruction = `---\napplyTo: "**"\n---\n\n${skillRef}`
+    writeAIConfig(targetDir, '.github/instructions/security.instructions.md', copilotPathInstruction, '.github/instructions/security.instructions.md (Copilot path-specific)')
+  }
+
+  const configureAider = config.aiTools
+    ? config.aiTools.includes('aider')
+    : (detectedAIs.includes('aider') || existsSync(join(targetDir, '.aider.conf.yml')))
+  if (configureAider)
+    writeAIConfig(targetDir, '.aider.conf.yml', `# security-skill\nread:\n  - .skills/security/skill.md\n  - memory-security.md\n`, '.aider.conf.yml (Aider)')
+
+  if (shouldConfigureAI('continue', config)) {
+    mkdirSync(join(targetDir, '.continue'), { recursive: true })
+    const continueContent = `# security-skill\nrules:\n  - name: "Security Skill"\n    rule: |\n      ${skillRef.replace(/\n/g, '\n      ')}\n`
+    writeAIConfig(targetDir, '.continue/config.yaml', continueContent, '.continue/config.yaml (Continue.dev)')
+  }
 
   if (detectedAIs.length > 0) {
     console.log(c('green', `  ✅ Detected existing AI tools: ${detectedAIs.join(', ')}`))

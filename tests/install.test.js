@@ -525,6 +525,31 @@ describe('runInstall', () => {
     runInstall(testDir, PACKAGE_ROOT)
     expect(console.log).toHaveBeenCalledWith(expect.stringContaining('already exists'))
   })
+
+  it('installs only specified categories when config.categories is provided', () => {
+    runInstall(testDir, PACKAGE_ROOT, { categories: ['01-secrets-management', '05-cryptography'] })
+    expect(existsSync(join(testDir, '.skills', 'security', 'instructions', '01-secrets-management.md'))).toBe(true)
+    expect(existsSync(join(testDir, '.skills', 'security', 'instructions', '05-cryptography.md'))).toBe(true)
+    expect(existsSync(join(testDir, '.skills', 'security', 'instructions', '07-database-security.md'))).toBe(false)
+  })
+
+  it('installs all categories when config.categories is undefined', () => {
+    runInstall(testDir, PACKAGE_ROOT, {})
+    expect(existsSync(join(testDir, '.skills', 'security', 'instructions', '07-database-security.md'))).toBe(true)
+  })
+
+  it('skips non-selected AI tools when config.aiTools is provided', () => {
+    runInstall(testDir, PACKAGE_ROOT, { aiTools: ['antigravity'] })
+    expect(existsSync(join(testDir, 'CLAUDE.md'))).toBe(true)
+    expect(existsSync(join(testDir, '.cursorrules'))).toBe(false)
+    expect(existsSync(join(testDir, '.windsurfrules'))).toBe(false)
+  })
+
+  it('configures all AI tools when config.aiTools is undefined', () => {
+    runInstall(testDir, PACKAGE_ROOT, {})
+    expect(existsSync(join(testDir, 'CLAUDE.md'))).toBe(true)
+    expect(existsSync(join(testDir, '.cursorrules'))).toBe(true)
+  })
 })
 
 // ─── main() ──────────────────────────────────────────────────────────────────
