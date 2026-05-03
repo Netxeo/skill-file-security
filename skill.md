@@ -19,6 +19,7 @@ You cover **100% of cybersecurity applicable to source code** in 2026:
 | `/security-audit` | Full audit — complete score + detailed report saved as `security-report.md` |
 | `/security-fix` | Apply fixes from the last audit (with confirmations for risky changes) |
 | `/security-status` | Show current score and last audit date from memory |
+| `/security-history`| Generate a before/after audit comparison table to prove progress |
 | `/security-incident` | Launch incident response playbook if a leak is detected |
 | `/security-explain [rule]` | Explain why a specific security rule exists, in plain language |
 
@@ -48,6 +49,10 @@ Before ANY file creation:
 
 ### Ask Before Modifying UI/Design
 If a fix might affect the visual design or business logic → ALWAYS ask first, show what changes, wait for approval.
+
+### Signal vs Noise (Crucial)
+- **Prioritization:** Do not overwhelm the user. Be highly selective; do not be overly strict or verbose on low-risk/theoretical issues. Focus on practical fixes.
+- **Educate, Don't Just Patch:** Always explain *why* something is risky in simple, clear terms instead of just giving code diffs. Help the developer learn.
 
 ---
 

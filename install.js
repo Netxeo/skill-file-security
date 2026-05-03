@@ -5,6 +5,7 @@
 import { existsSync, mkdirSync, copyFileSync, readFileSync, writeFileSync, readdirSync, statSync } from 'fs'
 import { join, resolve, dirname } from 'path'
 import { fileURLToPath } from 'url'
+import readline from 'readline'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
@@ -105,115 +106,158 @@ function mergeGitignore(securityEntries) {
 }
 
 // Main install
-try {
-  // 1. Create .skills/security directory
-  mkdirSync(SKILL_DIR, { recursive: true })
+const args = process.argv.slice(2);
+const flags = {
+  claude: args.includes('--claude'),
+  cursor: args.includes('--cursor'),
+  windsurf: args.includes('--windsurf'),
+  cline: args.includes('--cline'),
+  copilot: args.includes('--copilot'),
+  aider: args.includes('--aider'),
+  continue: args.includes('--continue'),
+  gemini: args.includes('--gemini'),
+  codex: args.includes('--codex'),
+  all: args.includes('--all')
+};
+const hasFlag = Object.values(flags).some(v => v);
 
-  // 2. Copy all skill files
-  copyDir(join(SOURCE_DIR, 'instructions'), join(SKILL_DIR, 'instructions'))
-  copyDir(join(SOURCE_DIR, 'templates'), join(SKILL_DIR, 'templates'))
-  copyDir(join(SOURCE_DIR, 'checklists'), join(SKILL_DIR, 'checklists'))
-  copyFileSync(join(SOURCE_DIR, 'skill.md'), join(SKILL_DIR, 'skill.md'))
-  console.log(c('green', '  ✅ Skill files installed → .skills/security/'))
+async function askAI() {
+  if (hasFlag) return flags;
 
-  // 3. Create memory-security.md if not exists
-  const memoryPath = join(TARGET_DIR, 'memory-security.md')
-  if (!existsSync(memoryPath)) {
-    copyFileSync(join(SOURCE_DIR, 'templates', 'memory-security.md'), memoryPath)
-    console.log(c('green', '  ✅ memory-security.md created'))
-  } else {
-    console.log(c('yellow', '  ⚠️  memory-security.md already exists (not overwritten)'))
-  }
+  const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout
+  });
 
-  // 4. Update .gitignore
-  const securityGitignoreEntries = ['.env', '.env.local', '.env.*', '*.key', '*.pem', 'secrets/']
-  const addedLines = mergeGitignore(securityGitignoreEntries)
-  if (addedLines > 0) {
-    console.log(c('green', `  ✅ .gitignore updated (${addedLines} security entries added)`))
-  } else {
-    console.log(c('green', '  ✅ .gitignore already secure'))
-  }
+  console.log(c('bold', '🤖 Which AI assistant are you using?'));
+  console.log('  1. Claude / Antigravity');
+  console.log('  2. Cursor');
+  console.log('  3. Windsurf');
+  console.log('  4. Cline');
+  console.log('  5. GitHub Copilot');
+  console.log('  6. Aider');
+  console.log('  7. Continue.dev');
+  console.log('  8. Gemini');
+  console.log('  9. Codex CLI');
+  console.log(' 10. All of them (inject all files)');
+  console.log('');
 
-  // 5. Create AI config files for all supported assistants
-  const detectedAIs = detectAI()
-  const skillRef = `## 🔐 Security Skill Active
-
-This project uses security-skill for automated security engineering.
-
-**At the start of every session:**
-1. Read \`.skills/security/skill.md\` — security engineering instructions (25 categories)
-2. Read \`memory-security.md\` — project security state and history
-3. Be ready for: \`/security-scan\`, \`/security-audit\`, \`/security-fix\`, \`/security-status\`, \`/security-incident\`
-
-You are acting as both a developer assistant AND a security engineer.
-Proactively flag security issues in all code you write or review.
-`
-
-  console.log('')
-  console.log(c('dim', '  Configuring AI assistants...'))
-
-  // ── Claude / Antigravity ──
-  writeAIConfig('CLAUDE.md', skillRef, 'CLAUDE.md (Claude / Antigravity)')
-
-  // ── OpenAI Codex CLI (AGENTS.md) ──
-  writeAIConfig('AGENTS.md', skillRef, 'AGENTS.md (OpenAI Codex CLI)')
-
-  // ── Gemini Code Assist ──
-  writeAIConfig('GEMINI.md', skillRef, 'GEMINI.md (Gemini Code Assist)')
-
-  // ── Cursor (legacy .cursorrules) ──
-  writeAIConfig('.cursorrules', skillRef, '.cursorrules (Cursor legacy)')
-
-  // ── Cursor (new MDC format) ──
-  mkdirSync(join(TARGET_DIR, '.cursor', 'rules'), { recursive: true })
-  const mdcContent = `---\ndescription: Security Skill — enterprise security engineering\nglobs: ["**/*"]\nalwaysApply: true\n---\n\n${skillRef}`
-  writeAIConfig('.cursor/rules/security.mdc', mdcContent, '.cursor/rules/security.mdc (Cursor MDC)')
-
-  // ── Windsurf ──
-  writeAIConfig('.windsurfrules', skillRef, '.windsurfrules (Windsurf)')
-
-  // ── Cline ──
-  writeAIConfig('.clinerules', skillRef, '.clinerules (Cline)')
-
-  // ── GitHub Copilot ──
-  mkdirSync(join(TARGET_DIR, '.github', 'instructions'), { recursive: true })
-  writeAIConfig('.github/copilot-instructions.md', skillRef, '.github/copilot-instructions.md (GitHub Copilot)')
-  // Copilot path-specific instruction (applies to all files)
-  const copilotPathInstruction = `---\napplyTo: "**"\n---\n\n${skillRef}`
-  writeAIConfig('.github/instructions/security.instructions.md', copilotPathInstruction, '.github/instructions/security.instructions.md (Copilot path-specific)')
-
-  // ── Aider ──
-  if (detectedAIs.includes('aider') || existsSync(join(TARGET_DIR, '.aider.conf.yml'))) {
-    writeAIConfig('.aider.conf.yml', `# security-skill\nread:\n  - .skills/security/skill.md\n  - memory-security.md\n`, '.aider.conf.yml (Aider)')
-  }
-
-  // ── Continue.dev ──
-  mkdirSync(join(TARGET_DIR, '.continue'), { recursive: true })
-  const continueContent = `# security-skill\nrules:\n  - name: "Security Skill"\n    rule: |\n      ${skillRef.replace(/\n/g, '\n      ')}\n`
-  writeAIConfig('.continue/config.yaml', continueContent, '.continue/config.yaml (Continue.dev)')
-
-  if (detectedAIs.length > 0) {
-    console.log(c('green', `  ✅ Detected existing AI tools: ${detectedAIs.join(', ')}`))
-  }
-
-  console.log('')
-  console.log(c('bold', c('green', '  ✅ Installation complete!')))
-  console.log('')
-  console.log(c('cyan', '  ──────────────────────────────────────────'))
-  console.log(c('bold', '  Available commands:'))
-  console.log(c('dim', '  /security-scan    → Quick security scan'))
-  console.log(c('dim', '  /security-audit   → Full audit + score /100'))
-  console.log(c('dim', '  /security-fix     → Apply fixes'))
-  console.log(c('dim', '  /security-status  → View current score'))
-  console.log(c('cyan', '  ──────────────────────────────────────────'))
-  console.log('')
-  console.log(c('dim', '  Compatible with:'))
-  console.log(c('dim', '  Claude · Cursor · Copilot · Windsurf · Cline · Codex CLI · Aider · Continue · Gemini'))
-  console.log('')
-  console.log(c('bold', c('yellow', '  ⚡ Run /security-scan in your AI to get started!')))
-  console.log('')
-
-} catch (error) {
-  console.error(c('red', '  ❌ Installation failed:'), error.message)
-  process.exit(1)
+  return new Promise((resolve) => {
+    rl.question('Select a number [10]: ', (answer) => {
+      rl.close();
+      const num = answer.trim() === '' ? 10 : parseInt(answer.trim(), 10);
+      resolve({
+        claude: num === 1,
+        cursor: num === 2,
+        windsurf: num === 3,
+        cline: num === 4,
+        copilot: num === 5,
+        aider: num === 6,
+        continue: num === 7,
+        gemini: num === 8,
+        codex: num === 9,
+        all: num === 10 || isNaN(num) || num < 1 || num > 10
+      });
+    });
+  });
 }
+
+async function run() {
+  try {
+    const aiSelection = await askAI();
+
+    // 1. Create .skills/security directory
+    mkdirSync(SKILL_DIR, { recursive: true })
+
+    // 2. Copy all skill files
+    copyDir(join(SOURCE_DIR, 'instructions'), join(SKILL_DIR, 'instructions'))
+    copyDir(join(SOURCE_DIR, 'templates'), join(SKILL_DIR, 'templates'))
+    copyDir(join(SOURCE_DIR, 'checklists'), join(SKILL_DIR, 'checklists'))
+    copyFileSync(join(SOURCE_DIR, 'skill.md'), join(SKILL_DIR, 'skill.md'))
+    console.log(c('green', '  ✅ Skill files installed → .skills/security/'))
+
+    // 3. Create memory-security.md if not exists
+    const memoryPath = join(TARGET_DIR, 'memory-security.md')
+    if (!existsSync(memoryPath)) {
+      copyFileSync(join(SOURCE_DIR, 'templates', 'memory-security.md'), memoryPath)
+      console.log(c('green', '  ✅ memory-security.md created'))
+    } else {
+      console.log(c('yellow', '  ⚠️  memory-security.md already exists (not overwritten)'))
+    }
+
+    // 4. Update .gitignore
+    const securityGitignoreEntries = ['.env', '.env.local', '.env.*', '*.key', '*.pem', 'secrets/']
+    const addedLines = mergeGitignore(securityGitignoreEntries)
+    if (addedLines > 0) {
+      console.log(c('green', `  ✅ .gitignore updated (${addedLines} security entries added)`))
+    } else {
+      console.log(c('green', '  ✅ .gitignore already secure'))
+    }
+
+    // 5. Create AI config files for all supported assistants
+    const skillRef = `## 🔐 Security Skill Active\n\nThis project uses security-skill for automated security engineering.\n\n**At the start of every session:**\n1. Read \`.skills/security/skill.md\` — security engineering instructions (25 categories)\n2. Read \`memory-security.md\` — project security state and history\n3. Be ready for: \`/security-scan\`, \`/security-audit\`, \`/security-fix\`, \`/security-status\`, \`/security-incident\`, \`/security-history\`\n\nYou are acting as both a developer assistant AND a security engineer.\nProactively flag security issues in all code you write or review.\n`
+
+    console.log('')
+    console.log(c('dim', '  Configuring AI assistants...'))
+
+    if (aiSelection.claude || aiSelection.all) {
+      writeAIConfig('CLAUDE.md', skillRef, 'CLAUDE.md (Claude / Antigravity)')
+    }
+    if (aiSelection.codex || aiSelection.all) {
+      writeAIConfig('AGENTS.md', skillRef, 'AGENTS.md (OpenAI Codex CLI)')
+    }
+    if (aiSelection.gemini || aiSelection.all) {
+      writeAIConfig('GEMINI.md', skillRef, 'GEMINI.md (Gemini Code Assist)')
+    }
+    if (aiSelection.cursor || aiSelection.all) {
+      writeAIConfig('.cursorrules', skillRef, '.cursorrules (Cursor legacy)')
+      mkdirSync(join(TARGET_DIR, '.cursor', 'rules'), { recursive: true })
+      const mdcContent = `---\ndescription: Security Skill — enterprise security engineering\nglobs: ["**/*"]\nalwaysApply: true\n---\n\n${skillRef}`
+      writeAIConfig('.cursor/rules/security.mdc', mdcContent, '.cursor/rules/security.mdc (Cursor MDC)')
+    }
+    if (aiSelection.windsurf || aiSelection.all) {
+      writeAIConfig('.windsurfrules', skillRef, '.windsurfrules (Windsurf)')
+    }
+    if (aiSelection.cline || aiSelection.all) {
+      writeAIConfig('.clinerules', skillRef, '.clinerules (Cline)')
+    }
+    if (aiSelection.copilot || aiSelection.all) {
+      mkdirSync(join(TARGET_DIR, '.github', 'instructions'), { recursive: true })
+      writeAIConfig('.github/copilot-instructions.md', skillRef, '.github/copilot-instructions.md (GitHub Copilot)')
+      const copilotPathInstruction = `---\napplyTo: "**"\n---\n\n${skillRef}`
+      writeAIConfig('.github/instructions/security.instructions.md', copilotPathInstruction, '.github/instructions/security.instructions.md (Copilot path-specific)')
+    }
+    if (aiSelection.aider || aiSelection.all) {
+      writeAIConfig('.aider.conf.yml', `# security-skill\nread:\n  - .skills/security/skill.md\n  - memory-security.md\n`, '.aider.conf.yml (Aider)')
+    }
+    if (aiSelection.continue || aiSelection.all) {
+      mkdirSync(join(TARGET_DIR, '.continue'), { recursive: true })
+      const continueContent = `# security-skill\nrules:\n  - name: "Security Skill"\n    rule: |\n      ${skillRef.replace(/\n/g, '\n      ')}\n`
+      writeAIConfig('.continue/config.yaml', continueContent, '.continue/config.yaml (Continue.dev)')
+    }
+
+    console.log('')
+    console.log(c('bold', c('green', '  ✅ Installation complete!')))
+    console.log('')
+    console.log(c('cyan', '  ──────────────────────────────────────────'))
+    console.log(c('bold', '  Available commands:'))
+    console.log(c('dim', '  /security-scan    → Quick security scan'))
+    console.log(c('dim', '  /security-audit   → Full audit + score /100'))
+    console.log(c('dim', '  /security-fix     → Apply fixes'))
+    console.log(c('dim', '  /security-status  → View current score'))
+    console.log(c('dim', '  /security-history → View audit history'))
+    console.log(c('cyan', '  ──────────────────────────────────────────'))
+    console.log('')
+    console.log(c('dim', '  Compatible with:'))
+    console.log(c('dim', '  Claude · Cursor · Copilot · Windsurf · Cline · Codex CLI · Aider · Continue · Gemini'))
+    console.log('')
+    console.log(c('bold', c('yellow', '  ⚡ Run /security-scan in your AI to get started!')))
+    console.log('')
+
+  } catch (error) {
+    console.error(c('red', '  ❌ Installation failed:'), error.message)
+    process.exit(1)
+  }
+}
+
+run();
