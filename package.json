@@ -1,6 +1,6 @@
 {
   "name": "@netxeo/security-skill",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "Enterprise-grade AI security skill for any codebase — covers CWE Top 25, OWASP Top 10, ASVS Level 1-3",
   "keywords": [
     "security",
