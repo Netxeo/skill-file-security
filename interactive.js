@@ -213,3 +213,121 @@ export async function promptAITools(detected) {
     choices,
   })
 }
+
+// ── buildInstallConfig ────────────────────────────────────────────────────────
+
+export async function buildInstallConfig(targetDir) {
+  const { select, checkbox } = await import('@inquirer/prompts')
+
+  const projectType = await select({
+    message: 'What type of project is this?',
+    choices: [
+      { value: 'web',    name: 'Web application / API' },
+      { value: 'static', name: 'Static website / docs site' },
+      { value: 'cli',    name: 'CLI tool / library' },
+      { value: 'mobile', name: 'Mobile app' },
+    ],
+  })
+
+  const infrastructure = await checkbox({
+    message: 'What infrastructure does it run on?',
+    choices: [
+      { value: 'hosting',    name: 'Standard hosting / cloud VM' },
+      { value: 'docker',     name: 'Docker / containers' },
+      { value: 'serverless', name: 'Serverless / edge  (Lambda, Vercel Functions, CF Workers)' },
+      { value: 'kubernetes', name: 'Kubernetes' },
+    ],
+  })
+
+  const features = await checkbox({
+    message: 'What features does it include?',
+    choices: [
+      { value: 'auth',         name: 'User authentication / login' },
+      { value: 'database',     name: 'Database  (SQL or NoSQL)' },
+      { value: 'fileUpload',   name: 'File uploads' },
+      { value: 'payments',     name: 'Payment processing' },
+      { value: 'externalApis', name: 'External API calls' },
+      { value: 'graphql',      name: 'GraphQL / WebSockets / real-time' },
+      { value: 'ai',           name: 'AI / LLM integration' },
+      { value: 'browserApis',  name: 'Browser APIs  (localStorage, ServiceWorker, WebCrypto)' },
+    ],
+  })
+
+  const compliance = await checkbox({
+    message: 'Any compliance or data requirements?',
+    choices: [
+      { value: 'gdpr',  name: 'EU users / GDPR' },
+      { value: 'hipaa', name: 'Healthcare data  (HIPAA)' },
+      { value: 'pci',   name: 'Payment data  (PCI-DSS)' },
+    ],
+  })
+
+  const hardening = await checkbox({
+    message: 'Additional security hardening?',
+    choices: [
+      { value: 'supplyChain',     name: 'Supply chain / dependency security' },
+      { value: 'botDdos',         name: 'Bot / DDoS protection' },
+      { value: 'monitoring',      name: 'Monitoring & honeytokens' },
+      { value: 'advancedAttacks', name: 'Advanced attacks  (SSRF, XXE, deserialization)' },
+      { value: 'dnsEmail',        name: 'DNS & email security  (SPF/DKIM/DMARC)' },
+    ],
+  })
+
+  return mapAnswersToCategories({ projectType, infrastructure, features, compliance, hardening })
+}
+
+// ── runInteractive ────────────────────────────────────────────────────────────
+
+export async function runInteractive(targetDir, sourceDir) {
+  const { runInstall, detectAI, c } = await import('./install.js')
+  // Dynamic self-import so vi.spyOn on the module's named exports is respected
+  const self = await import('./interactive.js')
+
+  try {
+    console.log('')
+    console.log(c('bold', c('cyan', '╔══════════════════════════════════════════════╗')))
+    console.log(c('bold', c('cyan', '║   🔐  SECURITY SKILL — Interactive Setup     ║')))
+    console.log(c('bold', c('cyan', '╚══════════════════════════════════════════════╝')))
+    console.log('')
+
+    const stack = scanStack(targetDir)
+    if (stack.language !== 'Unknown') console.log(c('dim', `   Language   : ${stack.language}`))
+    if (stack.framework)  console.log(c('dim', `   Framework  : ${stack.framework}`))
+    if (stack.database)   console.log(c('dim', `   Database   : ${stack.database}`))
+    if (stack.deployment) console.log(c('dim', `   Deployment : ${stack.deployment}`))
+    if (stack.aiTools.length) console.log(c('dim', `   AI tools   : ${stack.aiTools.join(', ')}`))
+    console.log('')
+    console.log(c('dim', "Let's tailor security coverage to your project. (~60 seconds)"))
+    console.log('')
+
+    const suggested  = await buildInstallConfig(targetDir)
+    const categories = await self.promptCategories(suggested)
+
+    if (categories.length === 0) {
+      console.log('\nNo categories selected — nothing to install.')
+      process.exit(0)
+      return
+    }
+
+    const aiTools = await self.promptAITools(detectAI(targetDir))
+
+    console.log('')
+    console.log('📦 Installing...')
+    console.log('')
+
+    runInstall(targetDir, sourceDir, { categories, aiTools })
+
+    console.log('')
+    console.log(c('bold', c('green', '  ✅ Installation complete!')))
+    console.log(c('bold', c('yellow', '  ⚡ Run /security-scan in your AI to get started!')))
+    console.log('')
+
+  } catch (err) {
+    if (err.name === 'ExitPromptError') {
+      console.log('\nInstallation cancelled.')
+      process.exit(0)
+      return
+    }
+    throw err
+  }
+}

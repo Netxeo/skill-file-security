@@ -225,3 +225,207 @@ describe('promptAITools', () => {
     expect(result).toEqual([])
   })
 })
+
+// ── Additional scanStack branch coverage (fixes branch coverage gap) ───────
+
+describe('scanStack — additional branches', () => {
+  it('detects TypeScript from typescript in package.json deps', async () => {
+    const { scanStack } = await import('../interactive.js')
+    writeFileSync(join(testDir, 'package.json'), JSON.stringify({
+      devDependencies: { typescript: '^5.0.0' }
+    }))
+    const info = scanStack(testDir)
+    expect(info.language).toContain('TypeScript')
+  })
+
+  it('detects Nuxt.js from package.json deps', async () => {
+    const { scanStack } = await import('../interactive.js')
+    writeFileSync(join(testDir, 'package.json'), JSON.stringify({
+      dependencies: { nuxt: '^3.0.0' }
+    }))
+    const info = scanStack(testDir)
+    expect(info.framework).toBe('Nuxt.js')
+  })
+
+  it('detects Express from package.json deps', async () => {
+    const { scanStack } = await import('../interactive.js')
+    writeFileSync(join(testDir, 'package.json'), JSON.stringify({
+      dependencies: { express: '^4.0.0' }
+    }))
+    const info = scanStack(testDir)
+    expect(info.framework).toBe('Express')
+  })
+
+  it('detects Netlify from netlify.toml', async () => {
+    const { scanStack } = await import('../interactive.js')
+    writeFileSync(join(testDir, 'netlify.toml'), '[build]')
+    const info = scanStack(testDir)
+    expect(info.deployment).toBe('Netlify')
+  })
+
+  it('detects Cloudflare Workers from wrangler.toml', async () => {
+    const { scanStack } = await import('../interactive.js')
+    writeFileSync(join(testDir, 'wrangler.toml'), 'name = "my-worker"')
+    const info = scanStack(testDir)
+    expect(info.deployment).toBe('Cloudflare Workers')
+  })
+
+  it('detects Prisma from prisma/ directory', async () => {
+    const { scanStack } = await import('../interactive.js')
+    mkdirSync(join(testDir, 'prisma'))
+    const info = scanStack(testDir)
+    expect(info.database).toBe('Prisma ORM')
+  })
+
+  it('detects Supabase from @supabase/supabase-js in package.json', async () => {
+    const { scanStack } = await import('../interactive.js')
+    writeFileSync(join(testDir, 'package.json'), JSON.stringify({
+      dependencies: { '@supabase/supabase-js': '^2.0.0' }
+    }))
+    const info = scanStack(testDir)
+    expect(info.database).toBe('Supabase')
+  })
+
+  it('detects SvelteKit', async () => {
+    const { scanStack } = await import('../interactive.js')
+    writeFileSync(join(testDir, 'package.json'), JSON.stringify({ dependencies: { '@sveltejs/kit': '^2.0.0' } }))
+    expect(scanStack(testDir).framework).toBe('SvelteKit')
+  })
+
+  it('detects Astro', async () => {
+    const { scanStack } = await import('../interactive.js')
+    writeFileSync(join(testDir, 'package.json'), JSON.stringify({ dependencies: { astro: '^4.0.0' } }))
+    expect(scanStack(testDir).framework).toBe('Astro')
+  })
+
+  it('detects Fastify', async () => {
+    const { scanStack } = await import('../interactive.js')
+    writeFileSync(join(testDir, 'package.json'), JSON.stringify({ dependencies: { fastify: '^4.0.0' } }))
+    expect(scanStack(testDir).framework).toBe('Fastify')
+  })
+
+  it('detects MongoDB from mongoose dep', async () => {
+    const { scanStack } = await import('../interactive.js')
+    writeFileSync(join(testDir, 'package.json'), JSON.stringify({ dependencies: { mongoose: '^8.0.0' } }))
+    expect(scanStack(testDir).database).toBe('MongoDB (Mongoose)')
+  })
+})
+
+// ── buildInstallConfig ────────────────────────────────────────────────────
+
+describe('buildInstallConfig', () => {
+  it('returns an array containing all always-on categories', async () => {
+    const { select, checkbox } = await import('@inquirer/prompts')
+    const { buildInstallConfig, ALWAYS_ON, ALWAYS_SILENT } = await import('../interactive.js')
+    vi.mocked(select).mockResolvedValue('cli')
+    vi.mocked(checkbox)
+      .mockResolvedValueOnce([])   // Q2 infrastructure
+      .mockResolvedValueOnce([])   // Q3 features
+      .mockResolvedValueOnce([])   // Q4 compliance
+      .mockResolvedValueOnce([])   // Q5 hardening
+    const result = await buildInstallConfig(testDir)
+    for (const cat of [...ALWAYS_ON, ...ALWAYS_SILENT]) {
+      expect(result).toContain(cat)
+    }
+  })
+
+  it('activates docker category when docker is selected in Q2', async () => {
+    const { select, checkbox } = await import('@inquirer/prompts')
+    const { buildInstallConfig } = await import('../interactive.js')
+    vi.mocked(select).mockResolvedValue('web')
+    vi.mocked(checkbox)
+      .mockResolvedValueOnce(['docker'])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([])
+    const result = await buildInstallConfig(testDir)
+    expect(result).toContain('09-docker-security')
+  })
+
+  it('activates AI/LLM category when ai is selected in Q3', async () => {
+    const { select, checkbox } = await import('@inquirer/prompts')
+    const { buildInstallConfig } = await import('../interactive.js')
+    vi.mocked(select).mockResolvedValue('web')
+    vi.mocked(checkbox)
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce(['ai'])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([])
+    const result = await buildInstallConfig(testDir)
+    expect(result).toContain('22-ai-llm-security')
+  })
+})
+
+// ── runInteractive ────────────────────────────────────────────────────────
+
+describe('runInteractive', () => {
+  it('calls runInstall with selected config', async () => {
+    const { select, checkbox } = await import('@inquirer/prompts')
+    const { runInteractive } = await import('../interactive.js')
+    const installModule = await import('../install.js')
+
+    vi.mocked(select).mockResolvedValue('cli')
+    vi.mocked(checkbox)
+      .mockResolvedValueOnce([])              // Q2 infrastructure
+      .mockResolvedValueOnce([])              // Q3 features
+      .mockResolvedValueOnce([])              // Q4 compliance
+      .mockResolvedValueOnce([])              // Q5 hardening
+      .mockResolvedValueOnce([])              // promptCategories user toggle
+      .mockResolvedValueOnce(['antigravity']) // promptAITools
+
+    const installSpy = vi.spyOn(installModule, 'runInstall').mockImplementation(() => {})
+    const PACKAGE_ROOT_HERE = join(__dirname, '..')
+
+    await runInteractive(testDir, PACKAGE_ROOT_HERE)
+
+    expect(installSpy).toHaveBeenCalledWith(
+      testDir,
+      PACKAGE_ROOT_HERE,
+      expect.objectContaining({ categories: expect.any(Array), aiTools: expect.any(Array) })
+    )
+  })
+
+  it('exits 0 without calling runInstall when ExitPromptError thrown', async () => {
+    const { select } = await import('@inquirer/prompts')
+    const { runInteractive } = await import('../interactive.js')
+
+    class ExitPromptError extends Error {
+      constructor() { super('User force closed the prompt'); this.name = 'ExitPromptError' }
+    }
+    vi.mocked(select).mockRejectedValue(new ExitPromptError())
+
+    const mockExit = vi.spyOn(process, 'exit').mockImplementation(() => {})
+    await runInteractive(testDir, join(__dirname, '..'))
+    expect(mockExit).toHaveBeenCalledWith(0)
+    expect(console.log).toHaveBeenCalledWith(expect.stringContaining('cancelled'))
+  })
+
+  it('exits 0 and prints nothing-to-install when promptCategories returns empty array', async () => {
+    const { select, checkbox } = await import('@inquirer/prompts')
+    const interactiveModule = await import('../interactive.js')
+
+    vi.mocked(select).mockResolvedValue('cli')
+    vi.mocked(checkbox)
+      .mockResolvedValueOnce([]) // Q2
+      .mockResolvedValueOnce([]) // Q3
+      .mockResolvedValueOnce([]) // Q4
+      .mockResolvedValueOnce([]) // Q5
+
+    vi.spyOn(interactiveModule, 'promptCategories').mockResolvedValue([])
+
+    const mockExit = vi.spyOn(process, 'exit').mockImplementation(() => {})
+    await interactiveModule.runInteractive(testDir, join(__dirname, '..'))
+    expect(mockExit).toHaveBeenCalledWith(0)
+    expect(console.log).toHaveBeenCalledWith(expect.stringContaining('nothing to install'))
+  })
+
+  it('rethrows non-ExitPromptError errors', async () => {
+    const { select } = await import('@inquirer/prompts')
+    const { runInteractive } = await import('../interactive.js')
+
+    const networkError = new Error('Network failure')
+    vi.mocked(select).mockRejectedValue(networkError)
+
+    await expect(runInteractive(testDir, join(__dirname, '..'))).rejects.toThrow('Network failure')
+  })
+})
