@@ -46,7 +46,9 @@
     "test:watch": "vitest",
     "test:ui": "vitest --ui"
   },
-  "dependencies": {},
+  "dependencies": {
+    "@inquirer/prompts": "^6.0.0"
+  },
   "devDependencies": {
     "@vitest/coverage-v8": "^2.1.0",
     "vitest": "^2.1.0"
