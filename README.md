@@ -252,6 +252,10 @@ Works out-of-the-box with every major AI coding assistant. No manual setup.
 
 **🎯 Signal vs Noise** — Highly selective. Prioritizes practical fixes and avoids overwhelming you with overly strict or theoretical noise.
 
+**🧠 Semantic Analysis** — Catches business logic flaws and context-dependent vulnerabilities that static analysis tools (like SonarQube) completely miss.
+
+**🛡️ AI Blind Spot Override** — Forces LLMs to check rate-limiting and complex session fixation (ASVS L3), which they naturally ignore.
+
 **🔧 Non-destructive** — Never auto-applies changes. You approve every fix.
 
 **📚 Educational** — Explains *why* something is risky in simple terms instead of blindly giving patches, helping you actually learn.

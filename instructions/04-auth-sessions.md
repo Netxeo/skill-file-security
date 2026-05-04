@@ -64,6 +64,7 @@ return res.json({ error: 'Invalid email or password' })
 ## Session Management
 
 ### 7. Session ID Regeneration After Login (Session Fixation)
+**Standard Case:** Regenerate upon initial login.
 ```js
 // 🔴 Session fixation vulnerability
 req.session.userId = user.id  // reuses pre-login session ID
@@ -74,6 +75,11 @@ req.session.regenerate((err) => {
   res.redirect('/dashboard')
 })
 ```
+
+**Subtle Cases (ASVS Level 3 Focus):**
+- **Privilege Escalation:** MUST regenerate session when switching roles (e.g., User → Admin), or when entering "sudo mode" (re-authentication).
+- **OAuth Flows:** MUST regenerate session *before* starting the OAuth redirect, and *after* receiving the callback.
+- **WebSocket:** Do NOT accept session IDs in WebSocket connection URLs (e.g., `ws://...?session=abc`); pass via secure cookies ONLY to prevent URL-based fixation.
 
 ### 8. Session Timeout
 ```js

@@ -56,6 +56,8 @@ Access-Control-Max-Age: 86400
 
 ## Rate Limiting Checks
 
+> **🤖 AI Priority Note:** LLMs consistently miss rate limiting in code reviews. You MUST actively search for `rateLimit` middleware (or equivalent) on **all public endpoints** (APIs, webhooks, login, contact forms, exports).
+
 ### 6. Global Rate Limit
 ```js
 // 🔴 No rate limit = DoS vulnerability
