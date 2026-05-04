@@ -1,3 +1,8 @@
+---
+name: file-security
+description: Use when reviewing or writing code for security issues — covers CWE Top 25, OWASP Top 10, and ASVS L1-3 (secrets, auth, crypto, injections, headers, deployment, supply chain). Trigger on security review requests, when running any /security-* command, or when touching auth/crypto/network/database code.
+---
+
 # 🔐 Security Skill — AI Security Engineer
 
 ## Identity

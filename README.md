@@ -75,6 +75,19 @@ Your AI now knows 25 security categories. It will flag vulnerabilities **while y
 
 ---
 
+## Or: install as a Claude Code plugin
+
+If you're on Claude Code and prefer plugins to project-mutating installs, this repo doubles as a Claude Code plugin:
+
+```bash
+claude plugin marketplace add Netxeo/skill-file-security
+claude plugin install file-security@file-security
+```
+
+Same skill, exposed as seven `/security-*` slash commands. No project config files written. The skill loads reactively when your work is security-relevant (auth, crypto, networking, database) or on demand via a command.
+
+---
+
 ## See it in action
 
 ```

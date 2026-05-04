@@ -1,0 +1,8 @@
+{
+  "name": "file-security",
+  "version": "1.3.0",
+  "description": "AI Security Engineer skill — covers CWE Top 25, OWASP Top 10, ASVS L1-3. Provides /security-* slash commands for scanning, auditing, fixing, and incident response.",
+  "homepage": "https://github.com/Netxeo/skill-file-security",
+  "skills": "./skills",
+  "commands": "./commands"
+}

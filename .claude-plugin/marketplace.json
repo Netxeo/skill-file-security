@@ -1,0 +1,15 @@
+{
+  "name": "file-security",
+  "owner": {
+    "name": "Netxeo",
+    "url": "https://github.com/Netxeo"
+  },
+  "description": "Marketplace exposing the file-security plugin — Claude Code plugin alternative to the npx installer. Same skill content, no project file mutations.",
+  "plugins": [
+    {
+      "name": "file-security",
+      "source": "./",
+      "description": "AI Security Engineer skill + /security-* commands. Installable via `claude plugin marketplace add` instead of `npx @netxeo/security-skill`."
+    }
+  ]
+}
