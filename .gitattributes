@@ -1,0 +1,9 @@
+# Normalize line endings: always store as LF, check out as LF
+# Prevents Vitest transform issues with CRLF in ESM files on Windows
+*.js    text eol=lf
+*.mjs   text eol=lf
+*.ts    text eol=lf
+*.json  text eol=lf
+*.md    text eol=lf
+*.yml   text eol=lf
+*.yaml  text eol=lf
